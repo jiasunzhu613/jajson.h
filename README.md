@@ -14,7 +14,7 @@ This project is tested against this [Json test suite](https://github.com/nst/JSO
 
 TODO:
 - [ ] Add check to fix string sizes on creation
-- [ ] add proper print json formatting
+- [x] add proper print json formatting
 - [ ] implement hashmap for json objects
 - [ ] implement dynamic array for json array
 - [ ] implement simd processing using intrinsics for deserialization

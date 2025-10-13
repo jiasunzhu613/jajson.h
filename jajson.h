@@ -10,7 +10,7 @@
 
 #define long long int
 #define JSON_NULL_VALUE 0
-#define STRING_MAX_LEN 5000
+#define STRING_MAX_LEN 5000 // MAJOR-TODO: Remove and change to using specific sizes per string on read
 
 /**
 project level comments:
@@ -147,7 +147,7 @@ struct json_value_s
 //===== BUILD JSON INIT =====
 json_value_t build_json_string(const char string_v[]);
 json_value_t build_json_int(int int_v);
-json_value_t build_json_float(float float_v);
+json_value_t build_json_float(double float_v);
 json_value_t build_json_bool(bool bool_v);
 json_value_t build_json_null();
 json_value_t build_json_object(int n_args, ...);
@@ -155,15 +155,17 @@ json_value_t build_json_array(int n_args, ...);
 //===== END BUILD JSON INIT =====
 
 //===== PRINT JSON INIT =====
-void print_json_string(json_string_t json_string);
-void print_json_int(json_int_t json_int);
-void print_json_float(json_float_t json_float);
-void print_json_bool(json_bool_t json_bool);
-void print_json_null();
-void print_json_object(json_object_t *json_object);
-void print_json_array(json_array_t *json_array);
+void print_tab_helper(int tab_level);
+void print_json_string(json_string_t json_string, int tab_level, bool append_comma, bool is_object_value);
+void print_json_int(json_int_t json_int, int tab_level, bool append_comma, bool is_object_value);
+void print_json_float(json_float_t json_float, int tab_level, bool append_comma, bool is_object_value);
+void print_json_bool(json_bool_t json_bool, int tab_level, bool append_comma, bool is_object_value);
+void print_json_null(int tab_level, bool append_comma, bool is_object_value);
+void print_json_object(json_object_t *json_object, int tab_level, bool append_comma, bool is_object_value);
+void print_json_array(json_array_t *json_array, int tab_level, bool append_comma, bool is_object_value);
 
 // All encompassing recursive function that users will interface with
+void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value);
 void print_json_value(json_value_t json_value); // TODO: does this need to be a pointer?
 //===== END PRINT JSON INIT =====
 
@@ -188,7 +190,8 @@ json_value_t* load_json(char *json);
 
 //===== BUILD JSON IMPLEMENTATION =====
 /**
- * \brief
+ * \brief Function to build a json string
+ * \param string_v[] string
  */
 json_value_t build_json_string(const char string_v[])
 {
@@ -210,7 +213,8 @@ json_value_t build_json_string(const char string_v[])
 }
 
 /**
- * \brief
+ * \brief Function to build a json integer
+ * \param int_v integer
  */
 json_value_t build_json_int(int int_v)
 {
@@ -232,9 +236,10 @@ json_value_t build_json_int(int int_v)
 }
 
 /**
- * \brief
+ * \brief Function to build a json floating value
+ * \param float_v floating point value
  */
-json_value_t build_json_float(float float_v)
+json_value_t build_json_float(double float_v)
 {
     // Build json_element_t
     json_element_t *json_element = (json_element_t *)calloc(1, sizeof(json_element_t));
@@ -254,7 +259,8 @@ json_value_t build_json_float(float float_v)
 }
 
 /**
- * \brief
+ * \brief Function to build a json boolean
+ * \param bool_v boolean value
  */
 json_value_t build_json_bool(bool bool_v)
 {
@@ -276,7 +282,7 @@ json_value_t build_json_bool(bool bool_v)
 }
 
 /**
- * \brief
+ * \brief Function to build a json null
  */
 json_value_t build_json_null()
 {
@@ -305,7 +311,6 @@ json_value_t build_json_null()
  * \param ... variable number of arguments describing key-value pairs describing
  * a key-value pair in a json object. Every pair of arguments in the variadic function
  * should follow the format: <char*>, <json_value_t>.
- *
  */
 json_value_t build_json_object(int n_args, ...)
 {
@@ -321,13 +326,9 @@ json_value_t build_json_object(int n_args, ...)
     for (int i = 0; i < n_args ; ++i)
     {
         char *key = va_arg(ap, char *);                // get key from variadic list
-        printf("Got key: %s\n", key);
 
         json_value_t *value = (json_value_t *) calloc(1, sizeof(json_value_t)); // get value from variadic list
         *value = va_arg(ap, json_value_t);
-        printf("Got value: ");
-        print_json_value(*value);
-        printf("\n");
 
         // Build linkedlist
         json_object_t *temp = (json_object_t *) calloc(1, sizeof(json_object_t));
@@ -349,7 +350,12 @@ json_value_t build_json_object(int n_args, ...)
 }
 
 /**
- * \brief
+ * \brief builds a json array from many json_value_t values.
+ *
+ * \param n_args number of json_value_t values in variadic function.
+ *
+ * \param ... variable number of arguments describing each element in a json array. Each element in the
+ * variadic array should be of the type <json_value_t>
  */
 json_value_t build_json_array(int n_args, ...)
 {
@@ -388,124 +394,174 @@ json_value_t build_json_array(int n_args, ...)
 //===== END BUILD JSON IMPLEMENTATION=====
 
 //===== PRINT JSON IMPLEMENTATION =====
+
 /**
- *
  */
-void print_json_string(json_string_t json_string)
+void print_tab_helper(int tab_level)
 {
-    printf("\"%s\" ", json_string.value);
+    for (int i = 0; i < tab_level; ++i)
+    {
+        printf("    ");
+    }
+}
+
+/**
+ * 
+ */
+void print_json_string(json_string_t json_string, int tab_level, bool append_comma, bool is_object_value)
+{
+    if (!is_object_value) print_tab_helper(tab_level);
+    printf("\"%s\"%s", 
+        json_string.value, 
+        append_comma ? ",\n" : "\n"
+    );
 }
 
 /**
  *
  */
-void print_json_int(json_int_t json_int)
+void print_json_int(json_int_t json_int, int tab_level, bool append_comma, bool is_object_value)
 {
-     printf("%ld ", json_int.value);
+    if (!is_object_value) print_tab_helper(tab_level);
+    printf("%ld%s", 
+        json_int.value,
+        append_comma ? ",\n" : "\n"
+    );
 }
 
 /**
  *
  */
-void print_json_float(json_float_t json_float)
+void print_json_float(json_float_t json_float, int tab_level, bool append_comma, bool is_object_value)
 {
-     printf("%f ", json_float.value);
+    if (!is_object_value) print_tab_helper(tab_level);
+    printf("%f%s", 
+        json_float.value,
+        append_comma ? ",\n" : "\n"
+    );
 }
 
 /**
  *
  */
-void print_json_bool(json_bool_t json_bool)
+void print_json_bool(json_bool_t json_bool, int tab_level, bool append_comma, bool is_object_value)
 {
-    printf("%s ", json_bool.value ? "true" : "false");
+    if (!is_object_value) print_tab_helper(tab_level);
+    printf("%s%s", 
+        json_bool.value ? "true" : "false",
+        append_comma ? ",\n" : "\n"
+    );
 }
 
 /**
  *
  */
-void print_json_null()
+void print_json_null(int tab_level, bool append_comma, bool is_object_value)
 {
-    printf("null ");
+    if (!is_object_value) print_tab_helper(tab_level);
+    printf("null%s", append_comma ? ",\n" : "\n");
 }
 
 /**
  * TODO: Fix this function for printing nested objects
  */
-void print_json_object(json_object_t *json_object)
+void print_json_object(json_object_t *json_object, int tab_level, bool append_comma, bool is_object_value)
 {
+    if (!is_object_value) print_tab_helper(tab_level);
+    // TODO: need a way to maintain tab state to know how many tabs to insert
     // traverse linkedlist
     json_object_t *p;
     p = json_object;
 
-    printf("{\n");
+    printf("{\n"); tab_level++;
     while (p != NULL)
     {
+        bool append_value_comma = true;
         // print key
-        printf("    \"%s\": ", p->key); // print colon to separate key and value
+        print_tab_helper(tab_level);
+        printf("\"%s\": ", p->key); // print colon to separate key and value
 
         // print value
-        print_json_value(*(p->value));
-        printf(",\n");
+        if (p->next == NULL) append_value_comma = false;
+        print_json_value_helper(*(p->value), tab_level,
+        append_value_comma, true
+        );
         p = p->next;
     }
-    printf("}\n");
+
+    print_tab_helper(--tab_level);
+    printf("}%s", append_comma ? ",\n" : "\n");
 }
 
 /**
  *
  */
-void print_json_array(json_array_t *json_array)
+void print_json_array(json_array_t *json_array, int tab_level, bool append_comma, bool is_object_value)
 {
+    if (!is_object_value) print_tab_helper(tab_level);
     // traverse linkedlist
     json_array_t *p;
     p = json_array;
 
-    printf("[\n");
+    printf("[\n"); tab_level++;
     while (p != NULL)
     {
+        bool append_value_comma = true;
+
         // print value
-        print_json_value(*(p->value));
-        printf(",\n");
+        if (p->next == NULL) append_value_comma = false;
+        print_json_value_helper(*(p->value), tab_level, append_value_comma, false
+        );
         p = p->next;
     }
-    printf("]\n");
+
+    print_tab_helper(--tab_level);
+    printf("]%s", append_comma ? ",\n" : "\n");
+}
+
+/**
+ *
+ */
+void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value)
+{    
+    switch (json_value.type)
+    {
+        case JSON_STRING:
+            print_json_string(json_value.value->string, tab_level, append_comma, is_object_value);
+            break;
+
+        case JSON_INT:
+            print_json_int(json_value.value->integer, tab_level, append_comma, is_object_value);
+            break;
+
+        case JSON_FLOAT:
+            print_json_float(json_value.value->floating, tab_level, append_comma, is_object_value);
+            break;
+
+        case JSON_BOOL:
+            print_json_bool(json_value.value->boolean, tab_level, append_comma, is_object_value);
+            break;
+
+        case JSON_NULL:
+            print_json_null(tab_level, append_comma, is_object_value);
+            break;
+
+        case JSON_OBJECT:
+            print_json_object(json_value.value->object, tab_level, append_comma, is_object_value);
+            break;
+
+        case JSON_ARRAY:
+            print_json_array(json_value.value->array, tab_level, append_comma, is_object_value);
+            break;
+    };
 }
 
 /**
  *
  */
 void print_json_value(json_value_t json_value)
-{
-    switch (json_value.type)
-    {
-        case JSON_STRING:
-            print_json_string(json_value.value->string);
-            break;
-
-        case JSON_INT:
-            print_json_int(json_value.value->integer);
-            break;
-
-        case JSON_FLOAT:
-            print_json_float(json_value.value->floating);
-            break;
-
-        case JSON_BOOL:
-            print_json_bool(json_value.value->boolean);
-            break;
-
-        case JSON_NULL:
-            print_json_null();
-            break;
-
-        case JSON_OBJECT:
-            print_json_object(json_value.value->object);
-            break;
-
-        case JSON_ARRAY:
-            print_json_array(json_value.value->array);
-            break;
-    };
+{    
+    print_json_value_helper(json_value, 0, false, false);
 }
 //===== END PRINT JSON IMPLEMENTATION =====
 
