@@ -1,10 +1,10 @@
-# jajson.h
+# jajson.h 
 
-Just Another JSON header. Another header file containing serializer and parser for the de facto data exchange format over the web.
+Just Another blazingly fast JSON header. A header file containing serializer and parser for the de facto data exchange format over the web.
 
 # Usage
 
-Include the single file header file into your project!
+Include the single file header file into your project! That's all!
 
 # Testing
 
