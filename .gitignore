@@ -1,7 +1,7 @@
 # From: https://gist.github.com/Yousha/3830712334ac30a90eb6041b932b68d7
 
 # Project specific
-test.json
+test*.json
 
 ##### Windows
 # Windows thumbnail cache files
@@ -537,7 +537,7 @@ qrc_*.cpp
 ui_*.h
 *.qmlc
 *.jsc
-Makefile*
+# Makefile*
 *build-*
 *.qm
 *.prl
@@ -944,10 +944,10 @@ gradle-app.setting
 ##### CMake
 CMakeLists.txt.user
 CMakeCache.txt
-CMakeFiles
+# CMakeFiles
 CMakeScripts
 Testing
-Makefile
+# Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
