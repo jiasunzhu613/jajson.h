@@ -1,6 +1,45 @@
 #include "jajson.h"
 #include <stdio.h>
 
+char *readFile(const char *filename) 
+{
+    // Open file
+    FILE* file = fopen(filename, "r");
+
+    if (file == NULL) 
+    {
+        perror("Error opening file");
+        return NULL;
+    }
+
+    // Get file size
+    fseek(file, 0, SEEK_END);
+    long fileSize =ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    // Allocate memory
+    char *buffer = (char*) malloc(fileSize + 1); // + 1 for the null character
+    if (buffer == NULL) {
+        perror("Error allocating memory");
+        fclose(file);
+        return NULL;
+    }
+
+    // Read string into buffer
+    size_t bytesRead = fread(buffer, 1, fileSize, file);
+    if (bytesRead != fileSize) {
+        perror("Error reading file");
+        free(buffer);
+        fclose(file);
+        return NULL;
+    }
+
+    // Set null terminator
+    buffer[fileSize] = '\0';
+    fclose(file);
+    return buffer;
+}
+
 int main() {
     // json_value_t json;
 
@@ -30,8 +69,8 @@ int main() {
 
     // char string_v[] = "hello world";
 
-    json_value_t json = build_json_string("hello world");
-    print_json_value(json);
+    // json_value_t json = build_json_string("hello world");
+    // print_json_value(json);
 
     // char string_v2[] = "hello world";
 
@@ -70,5 +109,14 @@ int main() {
     // printf("%p\n", &json_object);
     // printf("first element:: type: %d, key: %s, value: %s\n", json_object.type, json_object.value->object->key, json_object.value->object->value->value->string.value);
 
+    printf("below will be json loaded through file!\n");
+    // load file into string
+
+    char *json_test1 = readFile("test1.json");
+    printf("file contents: %s\n", json_test1);
+    json_value_t *json = load_json(json_test1);
+    print_json_value(*json);
+    printf("\n");
+    // printf("Value of json loaded: %d\n", json->value->boolean.value);
     return 0;
 }

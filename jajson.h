@@ -5,9 +5,18 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <math.h>
 
 #define long long int
 #define JSON_NULL_VALUE 0
+#define STRING_MAX_LEN 5000
+
+/**
+project level comments:
+- MAJOR-TODO => means application breaking things that are not handled yet.
+- TODO => things that should be addressed but may be optional.
+ */
 
 /*
  * NOTES for jajson.h header file
@@ -18,7 +27,20 @@
 // ================== JSON RELATED START =================
 // TODO: for easy contruction of json types, we will use variadic functions in c for json objects and json arrays
 
-typedef enum json_types_s json_types_t;
+/**
+ * \brief enum type defining possible json types
+ */
+typedef enum json_types_s
+{
+    JSON_STRING = 0,
+    JSON_INT = 1,   // NOTE: the json number type is split into two types => int and float
+    JSON_FLOAT = 2, // NOTE: the json number type is split into two types => int and float
+    JSON_BOOL = 3,
+    JSON_NULL = 4,
+    JSON_OBJECT = 5,
+    JSON_ARRAY = 6
+} json_types_t;
+
 typedef struct json_string_s json_string_t;
 typedef struct json_int_s json_int_t;
 typedef struct json_float_s json_float_t;
@@ -28,20 +50,6 @@ typedef struct json_object_s json_object_t;
 typedef struct json_array_s json_array_t;
 typedef union json_element_s json_element_t;
 typedef struct json_value_s json_value_t;
-
-/**
- * \brief enum type defining possible json types
- */
-enum json_types_s
-{
-    JSON_STRING = 0,
-    JSON_INT = 1,   // NOTE: the json number type is split into two types => int and float
-    JSON_FLOAT = 2, // NOTE: the json number type is split into two types => int and float
-    JSON_BOOL = 3,
-    JSON_NULL = 4,
-    JSON_OBJECT = 5,
-    JSON_ARRAY = 6
-};
 
 /**
  * \brief struct defining json string type
@@ -164,7 +172,9 @@ char *dump_json(json_value_t *json_value);
 
 // Helper functions for loading JSON
 char* skip_white_space(char *json); // used in load_json to skip white space in json data
-char* read_json_string(char *json, json_value_t *json_parsed);
+bool is_valid_json_number_char(char c);
+char* read_string(char* in, char **out, char quote_style);
+char* read_json_string(char *json, json_value_t *json_parsed, char quote_style);
 char* read_json_number(char *json, json_value_t *json_parsed);
 // char* read_json_float(char *json, json_value_t *json_parsed);
 char* read_json_bool(char *json, json_value_t *json_parsed);
@@ -172,7 +182,8 @@ char* read_json_null(char *json, json_value_t *json_parsed);
 char* read_json_object(char *json, json_value_t *json_parsed);
 char* read_json_array(char *json, json_value_t *json_parsed);
 
-json_value_t *load_json(char *json);
+char* load_json_helper(char *json, json_value_t *json_parsed);
+json_value_t* load_json(char *json);
 //===== END SERIALIZE/DESERIALIZE JSON INIT =====
 
 //===== BUILD JSON IMPLEMENTATION =====
@@ -527,28 +538,79 @@ char* skip_white_space(char *json)
 }
 
 /**
- * 
  */
-char* read_json_string(char *json, json_value_t *json_parsed)
+
+char* read_string(char *in, char **out, char quote_style)
 {
     bool escaped = false;
-    char* string = (char *) malloc(5000); // allocate max size, TODO: figure out better way to do this
-
+    char *string = (char *) malloc(STRING_MAX_LEN); // allocate max size, TODO: figure out better way to do this
+    char *temp = string;
     // Skip '"' or '\''
-    json++; 
+    in++; 
 
-    while (*json != '"') 
+    // if we reach the end quote and 
+    while (*in != quote_style || escaped) 
     {
-        if (*json == '\\')
+        if (*in == '\\')
         {
-            
+          escaped = true;
+          in++;
+          continue;
         }
 
-        *string++ = *json++;
+        // printf("Character: %c\n", *json);
+
+        *temp++ = *in++;
+
+        // printf("Character: %c\n", *(temp - 1));
 
         if (escaped)
             escaped = false;
     }
+    in++;
+    
+    *temp = '\0';
+    *out = string;
+    printf("got string: %s\n", string);
+
+    return in;
+}
+
+/**
+ * 
+ */
+char* read_json_string(char *json, json_value_t *json_parsed, char quote_style)
+{
+    json_element_t *json_element = (json_element_t *)calloc(1, sizeof(json_element_t));
+    char *string;
+
+    json = read_string(json, &string, quote_style);
+    
+    // printf("String that is read: %s\n", string);
+
+    json_string_t json_string;
+    json_string.value = string;
+
+    json_element->string = json_string;
+
+    json_parsed->value = json_element;
+
+    // MAJOR-TODO: what if json string is incorrect and escaped is true after leaving? or even worse, loop never ends
+    // if (escaped)
+    // {
+    //     // todo: print error, force uncontinueable error?
+    //     fprintf(stderr, "ERROR: Unable to read improper JSON string");
+    // }
+
+    return json; // return json to continue parsing
+}
+
+/**
+ * 
+ */
+bool is_valid_json_number_char(char c)
+{
+    return isdigit(c) || c == 'e' || c == 'E' || c == '.';
 }
 
 /**
@@ -556,31 +618,110 @@ char* read_json_string(char *json, json_value_t *json_parsed)
  */
 char* read_json_number(char *json, json_value_t *json_parsed)
 {
-    
+    json_element_t *json_element = (json_element_t *) calloc(1, sizeof(json_element_t));
+
+    // TODO: add support for E, e in json values?
+    // while string that is curretnly being read
+    bool is_float = false;
+    int floating_count = 0;
+    long integer = 0;
+
+    while (is_valid_json_number_char(*json))
+    {
+        if (is_float) 
+        {
+            floating_count += 1;
+        }
+
+        if (*json == '.')
+        {
+            is_float = true;
+            json++;
+            continue;
+        }
+
+        integer *= 10;
+        integer += *json++ - '0';
+    }
+
+    if (is_float) 
+    {
+        double float_value = (double) integer / pow(10, floating_count);
+        json_float_t json_float;
+        json_float.value = float_value;
+
+        json_element->floating = json_float;
+
+        json_parsed->type = JSON_FLOAT;
+        json_parsed->value = json_element;
+    } else {
+        json_int_t json_int;
+        json_int.value = integer;
+
+        json_element->integer = json_int;
+
+        json_parsed->type = JSON_INT;
+        json_parsed->value = json_element;
+    }
+
+    return json;
 }
 
-/**
- * 
- */
-char* read_json_bool(char *json, json_value_t *json_parsed)
-{
-
-}
-
-/**
- * 
- */
-char* read_json_null(char *json, json_value_t *json_parsed)
-{
-
-}
 
 /**
  * 
  */
 char* read_json_object(char *json, json_value_t *json_parsed)
 {
+    json_element_t *json_element = (json_element_t *) calloc(1, sizeof(json_element_t));
+    json_object_t *json_object = NULL;
+    json++; // skip { character
 
+    while (*json != '}')
+    {
+        json = skip_white_space(json);
+        // read in the value for the string key
+        char *key;
+        if (*json == '"')
+        {
+            json = read_string(json, &key, '"');
+        } else if (*json == '\'')
+        {
+            json = read_string(json, &key, '\'');
+        }
+
+        // printf("json current: %c\n", *json);
+
+        // Skip possible space between key and colon
+        json = skip_white_space(json);
+        json++; // skip colon value
+        json = skip_white_space(json);
+
+        json_value_t *value = (json_value_t*) calloc(1, sizeof(json_value_t));
+        json = load_json_helper(json, value);
+
+        // Extend json object linked list
+        json_object_t *temp = (json_object_t*) calloc(1, sizeof(json_object_t));
+        temp->key = key;
+        temp->value = value;
+        temp->next = json_object;
+
+        json_object = temp;
+
+        // Skip possible space between key and comma
+        json = skip_white_space(json);
+        if (*json == ',')
+        {
+            json++; // skip comma value if it exists
+        }
+        json = skip_white_space(json);
+    }
+    json++;
+    
+    json_element->object = json_object;
+    json_parsed->value = json_element;
+
+    return json;
 }
 
 /**
@@ -588,7 +729,120 @@ char* read_json_object(char *json, json_value_t *json_parsed)
  */
 char* read_json_array(char *json, json_value_t *json_parsed)
 {
+    json_element_t *json_element = (json_element_t *) calloc(1, sizeof(json_element_t));
+    json_array_t *json_array = NULL;
+    json++; // skip [ character
 
+    while (*json != ']')
+    {
+        json = skip_white_space(json);
+
+        json_value_t *value = (json_value_t*) calloc(1, sizeof(json_value_t));
+        json = load_json_helper(json, value);
+
+        // Extend json object linked list
+        json_array_t *temp = (json_array_t*) calloc(1, sizeof(json_array_t));
+        temp->value = value;
+        temp->next = json_array;
+
+        json_array = temp;
+
+        // Skip possible space between key and comma
+        json = skip_white_space(json);
+        if (*json == ',')
+        {
+            json++; // skip comma value if it exists
+        }
+        json = skip_white_space(json);
+    }
+    json++;
+    
+    json_element->array = json_array;
+    json_parsed->value = json_element;
+
+    return json;
+}
+
+
+/**
+ */
+char* load_json_helper(char *json, json_value_t *json_parsed) 
+{
+    json = skip_white_space(json);
+
+    /*
+    Recursive descent parser
+    - " => leads to json string
+    - n => leads to json null
+    - t or f => leads to json bool
+    - 0-9 => leads to json int or float
+    - { => leads to json object
+    - [ => leads to json array
+    */
+    switch (*json)
+    {
+        case '"':
+            json_parsed->type = JSON_STRING;
+            // parse json string value
+            json = read_json_string(json, json_parsed, '"');
+            break;
+
+        case '\'':
+            json_parsed->type = JSON_STRING;
+            // parse json string value that is enclosed by single quotes
+            json = read_json_string(json, json_parsed, '\'');
+            break;
+
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            // parse json int / float
+            json = read_json_number(json, json_parsed);
+            break;
+
+        case '{':
+            json_parsed->type = JSON_OBJECT;
+            // parse json object
+            json = read_json_object(json, json_parsed);
+            break;
+
+        case '[':
+            json_parsed->type = JSON_ARRAY;
+            // parse json_array
+            json = read_json_array(json, json_parsed);
+            break;
+        default:
+            // check for json null
+            // check for json boolean (true and false)
+            if (*json == 't' && *(json + 1) == 'r' && *(json + 2) == 'u' && *(json + 3) == 'e')
+            {
+                json_parsed->type = JSON_BOOL;
+                *json_parsed = build_json_bool(true);
+                json += 4;
+            }
+            else if (*json == 'f' && *(json + 1) == 'a' && *(json + 2) == 'l' && *(json + 3) == 's' && *(json + 4) == 'e')
+            {
+                json_parsed->type = JSON_BOOL;
+                *json_parsed = build_json_bool(false);
+                json += 5;
+            }
+            else if (*json == 'n' && *(json + 1) == 'u' && *(json + 2) == 'l' && *(json + 3) == 'l')
+            {
+                json_parsed->type = JSON_NULL;
+                *json_parsed = build_json_null();
+                json += 4;
+            }
+            break;
+    }
+
+    return json;
 }
 
 /**
@@ -601,77 +855,10 @@ char* read_json_array(char *json, json_value_t *json_parsed)
  */
 json_value_t* load_json(char *json)
 {
+    // NOTE: only allocates memory to direct descendents
     json_value_t *json_value = (json_value_t*) calloc(1, sizeof(json_value_t));
 
-    json = skip_white_space(json);
-
-    /*
-    Recursive descent parser
-    - " => leads to json string
-    - n => leads to json null
-    - t or f => leads to json bool
-    -  
-    */
-    switch (*json)
-    {
-        case '"':
-            json_value->type = JSON_STRING;
-            // parse json string value
-            json = read_json_string(json, json_value);
-            break;
-
-        case '\'':
-            json_value->type = JSON_STRING;
-            // parse json string value that is enclosed by single quotes
-            break;
-
-        // add support for +, -, ., E leading json int values?
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            json = read_json_number(json, json_value);
-            // parse json int / float
-            break;
-
-        case '{':
-            json_value->type = JSON_OBJECT;
-            // parse json object
-            json = read_json_object(json, json_value);
-            break;
-
-        case '[':
-            json_value->type = JSON_ARRAY;
-            // parse json_array
-            json = read_json_array(json, json_value);
-            break;
-        default:
-            // check for json null
-            // check for json boolean (true and false)
-            if (*json == 't' && *(json + 1) == 'r' && *(json + 2) == 'u' && *(json + 3) == 'e')
-            {
-                *json_value = build_json_bool(true);
-                *json += 4;
-            }
-            else if (*json == 'f' && *(json + 1) == 'a' && *(json + 2) == 'l' && *(json + 3) == 's' && *(json + 4) == 'e')
-            {
-                *json_value = build_json_bool(false);
-                *json += 5;
-            }
-            else if (*json == 'n' && *(json + 1) == 'u' && *(json + 2) == 'l' && *(json + 3) == 'l')
-            {
-                *json_value = build_json_null();
-                *json += 4;
-            }
-    }
-    
-
+    json = load_json_helper(json, json_value);
     
     return json_value;
 }
