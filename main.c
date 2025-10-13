@@ -1,6 +1,7 @@
 #include "jajson.h"
 #include <stdio.h>
 
+// TODO: FULLY UNDERSTAND WHAT THIS DOES
 char *readFile(const char *filename) 
 {
     // Open file

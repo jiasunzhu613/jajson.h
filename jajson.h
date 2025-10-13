@@ -10,7 +10,6 @@
 
 #define long long int
 #define JSON_NULL_VALUE 0
-#define STRING_MAX_LEN 5000 // MAJOR-TODO: Remove and change to using specific sizes per string on read
 
 /**
 project level comments:
@@ -170,12 +169,13 @@ void print_json_value(json_value_t json_value); // TODO: does this need to be a 
 //===== END PRINT JSON INIT =====
 
 //===== SERIALIZE/DESERIALIZE JSON INIT =====
-char *dump_json(json_value_t *json_value);
+char *dump_json(json_value_t *json_value); // TOOD: just reuse print json logic. => determine string size by iterating once beforehand
 
 // Helper functions for loading JSON
 char* skip_white_space(char *json); // used in load_json to skip white space in json data
 bool is_valid_json_number_char(char c);
-char* read_string(char* in, char **out, char quote_style);
+size_t find_string_size(char *in, char quote_style);
+char* read_string(char *in, char **out, size_t size, char quote_style);
 char* read_json_string(char *json, json_value_t *json_parsed, char quote_style);
 char* read_json_number(char *json, json_value_t *json_parsed);
 // char* read_json_float(char *json, json_value_t *json_parsed);
@@ -191,7 +191,9 @@ json_value_t* load_json(char *json);
 //===== BUILD JSON IMPLEMENTATION =====
 /**
  * \brief Function to build a json string
- * \param string_v[] string
+ * \param[in] string_v[] string
+ *
+ * \return constructed json value
  */
 json_value_t build_json_string(const char string_v[])
 {
@@ -214,7 +216,9 @@ json_value_t build_json_string(const char string_v[])
 
 /**
  * \brief Function to build a json integer
- * \param int_v integer
+ * \param[in] int_v integer
+ *
+ * \return constructed json value
  */
 json_value_t build_json_int(int int_v)
 {
@@ -237,7 +241,9 @@ json_value_t build_json_int(int int_v)
 
 /**
  * \brief Function to build a json floating value
- * \param float_v floating point value
+ * \param[in] float_v floating point value
+ *
+ * \return constructed json value
  */
 json_value_t build_json_float(double float_v)
 {
@@ -260,7 +266,9 @@ json_value_t build_json_float(double float_v)
 
 /**
  * \brief Function to build a json boolean
- * \param bool_v boolean value
+ * \param[in] bool_v boolean value
+ *
+ * \return constructed json value
  */
 json_value_t build_json_bool(bool bool_v)
 {
@@ -283,6 +291,8 @@ json_value_t build_json_bool(bool bool_v)
 
 /**
  * \brief Function to build a json null
+ *
+ * \return constructed json value
  */
 json_value_t build_json_null()
 {
@@ -306,11 +316,13 @@ json_value_t build_json_null()
 /**
  * \brief builds a json object from many string, json_value_t key-value pairs.
  *
- * \param n_args number of key-value pairs in variadic function.
+ * \param[in] n_args number of key-value pairs in variadic function.
  *
- * \param ... variable number of arguments describing key-value pairs describing
+ * \param[in] ... variable number of arguments describing key-value pairs describing
  * a key-value pair in a json object. Every pair of arguments in the variadic function
  * should follow the format: <char*>, <json_value_t>.
+ *
+ * \return constructed json value
  */
 json_value_t build_json_object(int n_args, ...)
 {
@@ -352,10 +364,12 @@ json_value_t build_json_object(int n_args, ...)
 /**
  * \brief builds a json array from many json_value_t values.
  *
- * \param n_args number of json_value_t values in variadic function.
+ * \param[in] n_args number of json_value_t values in variadic function.
  *
- * \param ... variable number of arguments describing each element in a json array. Each element in the
+ * \param[in] ... variable number of arguments describing each element in a json array. Each element in the
  * variadic array should be of the type <json_value_t>
+ *
+ * \return constructed json value
  */
 json_value_t build_json_array(int n_args, ...)
 {
@@ -396,6 +410,9 @@ json_value_t build_json_array(int n_args, ...)
 //===== PRINT JSON IMPLEMENTATION =====
 
 /**
+ * \brief Helper function to print tabs for formatting json indentation
+ * 
+ * \param[in] tab_level number of tabs to add
  */
 void print_tab_helper(int tab_level)
 {
@@ -406,7 +423,12 @@ void print_tab_helper(int tab_level)
 }
 
 /**
+ * \brief Function to print a json string. Mainly used as a helper function.
  * 
+ * \param[in] json_string json string to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_string(json_string_t json_string, int tab_level, bool append_comma, bool is_object_value)
 {
@@ -418,7 +440,12 @@ void print_json_string(json_string_t json_string, int tab_level, bool append_com
 }
 
 /**
- *
+ * \brief Function to print a json integer. Mainly used as a helper function.
+ * 
+ * \param[in] json_int json integer to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_int(json_int_t json_int, int tab_level, bool append_comma, bool is_object_value)
 {
@@ -430,7 +457,12 @@ void print_json_int(json_int_t json_int, int tab_level, bool append_comma, bool 
 }
 
 /**
- *
+ * \brief Function to print a json float. Mainly used as a helper function.
+ * 
+ * \param[in] json_float json float to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_float(json_float_t json_float, int tab_level, bool append_comma, bool is_object_value)
 {
@@ -442,7 +474,12 @@ void print_json_float(json_float_t json_float, int tab_level, bool append_comma,
 }
 
 /**
- *
+ * \brief Function to print a json bool. Mainly used as a helper function.
+ * 
+ * \param[in] json_bool json bool to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_bool(json_bool_t json_bool, int tab_level, bool append_comma, bool is_object_value)
 {
@@ -454,7 +491,12 @@ void print_json_bool(json_bool_t json_bool, int tab_level, bool append_comma, bo
 }
 
 /**
- *
+ * \brief Function to print a json null. Mainly used as a helper function.
+ * 
+ * \param[in] json_null json null to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_null(int tab_level, bool append_comma, bool is_object_value)
 {
@@ -463,7 +505,12 @@ void print_json_null(int tab_level, bool append_comma, bool is_object_value)
 }
 
 /**
- * TODO: Fix this function for printing nested objects
+ * \brief Function to print a json object. Mainly used as a helper function.
+ * 
+ * \param[in] json_object json object to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_object(json_object_t *json_object, int tab_level, bool append_comma, bool is_object_value)
 {
@@ -494,7 +541,12 @@ void print_json_object(json_object_t *json_object, int tab_level, bool append_co
 }
 
 /**
- *
+ * \brief Function to print a json array. Mainly used as a helper function.
+ * 
+ * \param[in] json_array json array to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_array(json_array_t *json_array, int tab_level, bool append_comma, bool is_object_value)
 {
@@ -520,7 +572,12 @@ void print_json_array(json_array_t *json_array, int tab_level, bool append_comma
 }
 
 /**
- *
+ * \brief Helper function to print a json value.
+ * 
+ * \param[in] json_value json value to be printed
+ * \param[in] tab_level number of tabs to ident the printed string by
+ * \param[in] append_comma boolean to show if a comma should be added after string
+ * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
 void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value)
 {    
@@ -557,7 +614,9 @@ void print_json_value_helper(json_value_t json_value, int tab_level, bool append
 }
 
 /**
- *
+ * \brief User facing function to print a json value.
+ * 
+ * \param[in] json_value json value to be printed
  */
 void print_json_value(json_value_t json_value)
 {    
@@ -570,7 +629,7 @@ void print_json_value(json_value_t json_value)
  *
  * \param[in] json_value: json_value_t pointer to access json structured data
  *
- * \returns c-style string containing json data in string format
+ * \returns string containing json data in string format
  */
 char* dump_json(json_value_t *json_value)
 {
@@ -582,7 +641,11 @@ char* dump_json(json_value_t *json_value)
 }
 
 /**
+ * \brief Helper function to different types of white space in string
  * 
+ * \param[in] json input string
+*
+ * \return remaining string after skipping white space characters
  */
 char* skip_white_space(char *json) 
 {
@@ -594,12 +657,56 @@ char* skip_white_space(char *json)
 }
 
 /**
+ * \brief Helper function to find the size of a string that is being parsed
+ * 
+ * \param[in] in input string
+ * \param[in] quote_style quote type the json string is enclosed with
+ *
+ * \return size of first string found in input
  */
+size_t find_string_size(char *in, char quote_style)
+{
+    size_t size = 0;
 
-char* read_string(char *in, char **out, char quote_style)
+    bool escaped = false;
+    // Skip '"' or '\''
+    in++; 
+
+    // if we reach the end quote and 
+    while (*in != quote_style || escaped) 
+    {
+        if (*in == '\\')
+        {
+          escaped = true;
+          in++;
+          continue;
+        }
+
+        size++;
+        in++;
+
+        if (escaped)
+            escaped = false;
+    }
+    in++;
+
+    return size + 1; // add one for null termination character
+}
+
+/**
+ * \brief Helper function to read a json string from input
+ * 
+ * \param[in] in input string
+ * \param[in] out address to a pointer that stores the parsed string
+ * \param[in] size size of string to be parsed
+ * \param[in] quote_style quote type the string to be parsed will be enclosed by
+ *
+ * \return remaining input string after reading the first string from the input string
+ */
+char* read_string(char *in, char **out, size_t size, char quote_style)
 {
     bool escaped = false;
-    char *string = (char *) malloc(STRING_MAX_LEN); // allocate max size, TODO: figure out better way to do this
+    char *string = (char *) malloc(size); // allocate max size, TODO: figure out better way to do this
     char *temp = string;
     // Skip '"' or '\''
     in++; 
@@ -614,11 +721,7 @@ char* read_string(char *in, char **out, char quote_style)
           continue;
         }
 
-        // printf("Character: %c\n", *json);
-
         *temp++ = *in++;
-
-        // printf("Character: %c\n", *(temp - 1));
 
         if (escaped)
             escaped = false;
@@ -627,25 +730,32 @@ char* read_string(char *in, char **out, char quote_style)
     
     *temp = '\0';
     *out = string;
-    printf("got string: %s\n", string);
 
     return in;
 }
 
 /**
- * 
+ * \brief Function to read a json string
+ *
+ * \param[in] json input string
+ * \param[in] json_parsed resultant json value to store parsed string
+ * \param[in] quote_style quote type the string to be parsed will be enclosed by
+ *
+ * \return remaining input string after parsing first json string found
  */
 char* read_json_string(char *json, json_value_t *json_parsed, char quote_style)
 {
     json_element_t *json_element = (json_element_t *)calloc(1, sizeof(json_element_t));
+    size_t string_size = find_string_size(json, quote_style);
     char *string;
 
-    json = read_string(json, &string, quote_style);
+    json = read_string(json, &string, string_size, quote_style);
     
     // printf("String that is read: %s\n", string);
 
     json_string_t json_string;
     json_string.value = string;
+    json_string.size = string_size;
 
     json_element->string = json_string;
 
@@ -662,7 +772,11 @@ char* read_json_string(char *json, json_value_t *json_parsed, char quote_style)
 }
 
 /**
- * 
+ * \brief Helper function to determine if a character is a valid character in a json number
+ *
+ * \param[in] c character in question
+ *
+ * \return true if c is a valid json number character, false otherwise
  */
 bool is_valid_json_number_char(char c)
 {
@@ -670,7 +784,12 @@ bool is_valid_json_number_char(char c)
 }
 
 /**
- * 
+ * \brief Function to read a json number
+ *
+ * \param[in] json input string
+ * \param[in] json_parsed resultant json value to store parsed integer or floating point value
+ *
+ * \return remaining input string after parsing first json number found
  */
 char* read_json_number(char *json, json_value_t *json_parsed)
 {
@@ -679,38 +798,77 @@ char* read_json_number(char *json, json_value_t *json_parsed)
     // TODO: add support for E, e in json values?
     // while string that is curretnly being read
     bool is_float = false;
+    long is_negative = 1;
     int floating_count = 0;
     long integer = 0;
 
+    bool use_scientific_notation = false;
+    long exponent = 0;
+
+    // negative check
+    if (*json == '-') 
+    {
+        is_negative = -1;
+        json++;
+    }
+
     while (is_valid_json_number_char(*json))
     {
-        if (is_float) 
-        {
-            floating_count += 1;
-        }
-
         if (*json == '.')
         {
             is_float = true;
             json++;
             continue;
         }
+        
+        if (*json == 'e' || *json == 'E')
+        {
+            use_scientific_notation = true;
+            json++;
+            continue;
+        }
 
-        integer *= 10;
-        integer += *json++ - '0';
+        if (is_float && !use_scientific_notation) 
+        {
+            floating_count -= 1;
+        }
+
+        if (use_scientific_notation)
+        {
+            exponent *= 10;
+            exponent += *json++ - '0';
+        } else 
+        {
+            integer *= 10;
+            integer += *json++ - '0';
+        }
     }
+
+    // apply negative
+    integer *= is_negative;
 
     if (is_float) 
     {
-        double float_value = (double) integer / pow(10, floating_count);
+        if (use_scientific_notation) 
+        {
+            floating_count += exponent;
+        }
+
+        double float_value = (double) integer * pow(10, floating_count);
         json_float_t json_float;
         json_float.value = float_value;
 
         json_element->floating = json_float;
-
+        
         json_parsed->type = JSON_FLOAT;
         json_parsed->value = json_element;
-    } else {
+    } else 
+    {
+        if (use_scientific_notation) 
+        {
+            integer = integer * pow(10, exponent);
+        }
+
         json_int_t json_int;
         json_int.value = integer;
 
@@ -725,7 +883,12 @@ char* read_json_number(char *json, json_value_t *json_parsed)
 
 
 /**
- * 
+ * \brief Function to read a json object
+ *
+ * \param[in] json input string
+ * \param[in] json_parsed resultant json value to store parsed json object
+ *
+ * \return remaining input string after parsing first json object found
  */
 char* read_json_object(char *json, json_value_t *json_parsed)
 {
@@ -740,10 +903,12 @@ char* read_json_object(char *json, json_value_t *json_parsed)
         char *key;
         if (*json == '"')
         {
-            json = read_string(json, &key, '"');
+            size_t string_size = find_string_size(json, '"');
+            json = read_string(json, &key, string_size, '"');
         } else if (*json == '\'')
         {
-            json = read_string(json, &key, '\'');
+            size_t string_size = find_string_size(json, '\'');
+            json = read_string(json, &key, string_size, '\'');
         }
 
         // printf("json current: %c\n", *json);
@@ -781,7 +946,12 @@ char* read_json_object(char *json, json_value_t *json_parsed)
 }
 
 /**
- * 
+ * \brief Function to read a json array
+ *
+ * \param[in] json input string
+ * \param[in] json_parsed resultant json value to store parsed json array
+ *
+ * \return remaining input string after parsing first json array found
  */
 char* read_json_array(char *json, json_value_t *json_parsed)
 {
@@ -821,6 +991,12 @@ char* read_json_array(char *json, json_value_t *json_parsed)
 
 
 /**
+ * \brief Helper function to read a json value
+ *
+ * \param[in] json input string
+ * \param[in] json_parsed resultant json value to store parsed json value
+ *
+ * \return remaining input string after parsing first json object found
  */
 char* load_json_helper(char *json, json_value_t *json_parsed) 
 {
@@ -828,10 +1004,10 @@ char* load_json_helper(char *json, json_value_t *json_parsed)
 
     /*
     Recursive descent parser
-    - " => leads to json string
+    - ", ' => leads to json string
     - n => leads to json null
     - t or f => leads to json bool
-    - 0-9 => leads to json int or float
+    - 0-9, - => leads to json int or float
     - { => leads to json object
     - [ => leads to json array
     */
@@ -859,6 +1035,7 @@ char* load_json_helper(char *json, json_value_t *json_parsed)
         case '7':
         case '8':
         case '9':
+        case '-':
             // parse json int / float
             json = read_json_number(json, json_parsed);
             break;
@@ -904,7 +1081,7 @@ char* load_json_helper(char *json, json_value_t *json_parsed)
 /**
  * \brief json parser (deserializer) in jajson.h
  *
- * \param[in] json: c-style string that represents json data
+ * \param[in] json: input string that represents json data
  *
  * \returns json_value_t variable containing json data represented
  * using jajson.h defined json structs, enums, and unions
