@@ -1,12 +1,8 @@
-# jajson.h 
-
-Just Another blazingly fast JSON header. A header file containing serializer and parser for the de facto data exchange format over the web.
-
 # Usage
 
 Include the single file header file into your project! That's all!
 
-# Roadmap
+# Roadmap for recursive
 
 TODO (in order of rough priority):
 - [x] Add check to fix string sizes on creation
