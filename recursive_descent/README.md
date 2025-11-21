@@ -6,10 +6,6 @@ Just Another blazingly fast JSON header. A header file containing serializer and
 
 Include the single file header file into your project! That's all!
 
-# Testing
-
-This project is tested against this [Json test suite](https://github.com/nst/JSONTestSuite)
-
 # Roadmap
 
 TODO (in order of rough priority):
@@ -20,4 +16,7 @@ TODO (in order of rough priority):
     - [ ] add variable print json formatting for different lengthed json objects and json arrays
 - [ ] implement hashmap for json objects
 - [ ] implement dynamic array for json array
-- [ ] implement simd processing using intrinsics for deserialization
+~~- [ ] implement simd processing using intrinsics for deserialization~~
+
+# Benchmarks
+~222.5 MB/s throughput

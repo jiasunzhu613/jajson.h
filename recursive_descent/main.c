@@ -1,45 +1,6 @@
 #include "jajson.h"
 #include <stdio.h>
 
-// TODO: FULLY UNDERSTAND WHAT THIS DOES
-char *readFile(const char *filename) 
-{
-    // Open file
-    FILE* file = fopen(filename, "r");
-
-    if (file == NULL) 
-    {
-        perror("Error opening file");
-        return NULL;
-    }
-
-    // Get file size
-    fseek(file, 0, SEEK_END);
-    long fileSize =ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    // Allocate memory
-    char *buffer = (char*) malloc(fileSize + 1); // + 1 for the null character
-    if (buffer == NULL) {
-        perror("Error allocating memory");
-        fclose(file);
-        return NULL;
-    }
-
-    // Read string into buffer
-    size_t bytesRead = fread(buffer, 1, fileSize, file);
-    if (bytesRead != fileSize) {
-        perror("Error reading file");
-        free(buffer);
-        fclose(file);
-        return NULL;
-    }
-
-    // Set null terminator
-    buffer[fileSize] = '\0';
-    fclose(file);
-    return buffer;
-}
 
 int main() {
     // json_value_t json;
@@ -118,6 +79,7 @@ int main() {
     json_value_t *json = load_json(json_test1);
     print_json_value(*json);
     printf("\n");
+
     // printf("Value of json loaded: %d\n", json->value->boolean.value);
     return 0;
 }

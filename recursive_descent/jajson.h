@@ -154,7 +154,7 @@ json_value_t build_json_array(int n_args, ...);
 //===== END BUILD JSON INIT =====
 
 //===== PRINT JSON INIT =====
-void print_tab_helper(int tab_level);
+static void print_tab_helper(int tab_level);
 void print_json_string(json_string_t json_string, int tab_level, bool append_comma, bool is_object_value);
 void print_json_int(json_int_t json_int, int tab_level, bool append_comma, bool is_object_value);
 void print_json_float(json_float_t json_float, int tab_level, bool append_comma, bool is_object_value);
@@ -164,7 +164,7 @@ void print_json_object(json_object_t *json_object, int tab_level, bool append_co
 void print_json_array(json_array_t *json_array, int tab_level, bool append_comma, bool is_object_value);
 
 // All encompassing recursive function that users will interface with
-void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value);
+static void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value);
 void print_json_value(json_value_t json_value); // TODO: does this need to be a pointer?
 //===== END PRINT JSON INIT =====
 
@@ -172,20 +172,19 @@ void print_json_value(json_value_t json_value); // TODO: does this need to be a 
 char *dump_json(json_value_t *json_value); // TOOD: just reuse print json logic. => determine string size by iterating once beforehand
 
 // Helper functions for loading JSON
-char* skip_white_space(char *json); // used in load_json to skip white space in json data
-bool is_valid_json_number_char(char c);
-size_t find_string_size(char *in, char quote_style);
-char* read_string(char *in, char **out, size_t size, char quote_style);
-char* read_json_string(char *json, json_value_t *json_parsed, char quote_style);
-char* read_json_number(char *json, json_value_t *json_parsed);
-// char* read_json_float(char *json, json_value_t *json_parsed);
-char* read_json_bool(char *json, json_value_t *json_parsed);
-char* read_json_null(char *json, json_value_t *json_parsed);
-char* read_json_object(char *json, json_value_t *json_parsed);
-char* read_json_array(char *json, json_value_t *json_parsed);
+static char* skip_white_space(char *json); // used in load_json to skip white space in json data
+static bool is_valid_json_number_char(char c);
+static size_t find_string_size(char *in, char quote_style);
+static char* read_string(char *in, char **out, size_t size, char quote_style);
+static char* read_json_string(char *json, json_value_t *json_parsed, char quote_style);
+static char* read_json_number(char *json, json_value_t *json_parsed);
+static char* read_json_object(char *json, json_value_t *json_parsed);
+static char* read_json_array(char *json, json_value_t *json_parsed);
 
-char* load_json_helper(char *json, json_value_t *json_parsed);
+static char* load_json_helper(char *json, json_value_t *json_parsed);
 json_value_t* load_json(char *json);
+
+void free_json(json_value_t *json_parsed); // Used for freeing allocated heap memory used to load json
 //===== END SERIALIZE/DESERIALIZE JSON INIT =====
 
 //===== BUILD JSON IMPLEMENTATION =====
@@ -414,7 +413,7 @@ json_value_t build_json_array(int n_args, ...)
  * 
  * \param[in] tab_level number of tabs to add
  */
-void print_tab_helper(int tab_level)
+static void print_tab_helper(int tab_level)
 {
     for (int i = 0; i < tab_level; ++i)
     {
@@ -579,7 +578,7 @@ void print_json_array(json_array_t *json_array, int tab_level, bool append_comma
  * \param[in] append_comma boolean to show if a comma should be added after string
  * \param[in] is_object_value tabs will be prepended if current json value is a json object value
  */
-void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value)
+static void print_json_value_helper(json_value_t json_value, int tab_level, bool append_comma, bool is_object_value)
 {    
     switch (json_value.type)
     {
@@ -647,7 +646,7 @@ char* dump_json(json_value_t *json_value)
 *
  * \return remaining string after skipping white space characters
  */
-char* skip_white_space(char *json) 
+static char* skip_white_space(char *json) 
 {
     while (*json == ' ' || *json == '\t' || *json == '\n') {
         json++;
@@ -664,7 +663,7 @@ char* skip_white_space(char *json)
  *
  * \return size of first string found in input
  */
-size_t find_string_size(char *in, char quote_style)
+static size_t find_string_size(char *in, char quote_style)
 {
     size_t size = 0;
 
@@ -703,7 +702,7 @@ size_t find_string_size(char *in, char quote_style)
  *
  * \return remaining input string after reading the first string from the input string
  */
-char* read_string(char *in, char **out, size_t size, char quote_style)
+static char* read_string(char *in, char **out, size_t size, char quote_style)
 {
     bool escaped = false;
     char *string = (char *) malloc(size); // allocate max size, TODO: figure out better way to do this
@@ -743,7 +742,7 @@ char* read_string(char *in, char **out, size_t size, char quote_style)
  *
  * \return remaining input string after parsing first json string found
  */
-char* read_json_string(char *json, json_value_t *json_parsed, char quote_style)
+static char* read_json_string(char *json, json_value_t *json_parsed, char quote_style)
 {
     json_element_t *json_element = (json_element_t *)calloc(1, sizeof(json_element_t));
     size_t string_size = find_string_size(json, quote_style);
@@ -778,7 +777,7 @@ char* read_json_string(char *json, json_value_t *json_parsed, char quote_style)
  *
  * \return true if c is a valid json number character, false otherwise
  */
-bool is_valid_json_number_char(char c)
+static bool is_valid_json_number_char(char c)
 {
     return isdigit(c) || c == 'e' || c == 'E' || c == '.';
 }
@@ -791,7 +790,7 @@ bool is_valid_json_number_char(char c)
  *
  * \return remaining input string after parsing first json number found
  */
-char* read_json_number(char *json, json_value_t *json_parsed)
+static char* read_json_number(char *json, json_value_t *json_parsed)
 {
     json_element_t *json_element = (json_element_t *) calloc(1, sizeof(json_element_t));
 
@@ -890,7 +889,7 @@ char* read_json_number(char *json, json_value_t *json_parsed)
  *
  * \return remaining input string after parsing first json object found
  */
-char* read_json_object(char *json, json_value_t *json_parsed)
+static char* read_json_object(char *json, json_value_t *json_parsed)
 {
     json_element_t *json_element = (json_element_t *) calloc(1, sizeof(json_element_t));
     json_object_t *json_object = NULL;
@@ -953,7 +952,7 @@ char* read_json_object(char *json, json_value_t *json_parsed)
  *
  * \return remaining input string after parsing first json array found
  */
-char* read_json_array(char *json, json_value_t *json_parsed)
+static char* read_json_array(char *json, json_value_t *json_parsed)
 {
     json_element_t *json_element = (json_element_t *) calloc(1, sizeof(json_element_t));
     json_array_t *json_array = NULL;
@@ -998,7 +997,7 @@ char* read_json_array(char *json, json_value_t *json_parsed)
  *
  * \return remaining input string after parsing first json object found
  */
-char* load_json_helper(char *json, json_value_t *json_parsed) 
+static char* load_json_helper(char *json, json_value_t *json_parsed) 
 {
     json = skip_white_space(json);
 
@@ -1094,4 +1093,28 @@ json_value_t* load_json(char *json)
     json = load_json_helper(json, json_value);
     
     return json_value;
+}
+
+/**
+ * returns true if the freeing succeeded
+ */
+void free_json(json_value_t *json_parsed) {
+    if (json_parsed->type == JSON_ARRAY) {
+        json_array_t *p = json_parsed->value->array;
+        while (p != NULL) {
+            json_array_t *temp = p->next;
+            free_json(p->value);
+            p = temp;
+        }
+    } else if ( json_parsed->type == JSON_OBJECT) {
+        json_object_t *p = json_parsed->value->object;
+        while (p != NULL) {
+            json_object_t *temp = p->next;
+            free_json(p->value);
+            p = temp;
+        }       
+    }
+
+    free(json_parsed->value);
+    free(json_parsed);
 }
