@@ -4,6 +4,6 @@ Just Another ~~blazingly fast~~ JSON header. A header file containing serializer
 
 # Contents
 - Recursive Descent JSON (de)serializer
-~~- SIMD-boosted JSON (de)serializer~~
+- ~~SIMD-boosted JSON (de)serializer~~
 
 # Example usage (Coming soon!)
