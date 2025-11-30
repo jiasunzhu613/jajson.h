@@ -7,8 +7,9 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <math.h>
+#include <stdint.h>
 
-#define long long int
+// #define long long int
 #define JSON_NULL_VALUE 0
 
 /**
@@ -175,7 +176,7 @@ char *dump_json(json_value_t *json_value); // TOOD: just reuse print json logic.
 static char* skip_white_space(char *json); // used in load_json to skip white space in json data
 static bool is_valid_json_number_char(char c);
 static size_t find_string_size(char *in, char quote_style);
-static char* read_string(char *in, char **out, size_t size, char quote_style);
+static char* read_string(char *in, char *out, char quote_style);
 static char* read_json_string(char *json, json_value_t *json_parsed, char quote_style);
 static char* read_json_number(char *json, json_value_t *json_parsed);
 static char* read_json_object(char *json, json_value_t *json_parsed);
@@ -702,11 +703,9 @@ static size_t find_string_size(char *in, char quote_style)
  *
  * \return remaining input string after reading the first string from the input string
  */
-static char* read_string(char *in, char **out, size_t size, char quote_style)
+static char* read_string(char *in, char *out, char quote_style)
 {
     bool escaped = false;
-    char *string = (char *) malloc(size); // allocate max size, TODO: figure out better way to do this
-    char *temp = string;
     // Skip '"' or '\''
     in++; 
 
@@ -720,15 +719,14 @@ static char* read_string(char *in, char **out, size_t size, char quote_style)
           continue;
         }
 
-        *temp++ = *in++;
+        *out++ = *in++;
 
         if (escaped)
             escaped = false;
     }
     in++;
     
-    *temp = '\0';
-    *out = string;
+    *out = '\0';
 
     return in;
 }
@@ -746,9 +744,9 @@ static char* read_json_string(char *json, json_value_t *json_parsed, char quote_
 {
     json_element_t *json_element = (json_element_t *)calloc(1, sizeof(json_element_t));
     size_t string_size = find_string_size(json, quote_style);
-    char *string;
+    char *string = (char *) malloc(string_size);
 
-    json = read_string(json, &string, string_size, quote_style);
+    json = read_string(json, string, quote_style);
     
     // printf("String that is read: %s\n", string);
 
@@ -903,11 +901,13 @@ static char* read_json_object(char *json, json_value_t *json_parsed)
         if (*json == '"')
         {
             size_t string_size = find_string_size(json, '"');
-            json = read_string(json, &key, string_size, '"');
+            key = (char *) malloc(string_size);
+            json = read_string(json, key, '"');
         } else if (*json == '\'')
         {
             size_t string_size = find_string_size(json, '\'');
-            json = read_string(json, &key, string_size, '\'');
+            key = (char *) malloc(string_size);
+            json = read_string(json, key, '\'');
         }
 
         // printf("json current: %c\n", *json);
